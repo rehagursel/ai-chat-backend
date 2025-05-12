@@ -42,35 +42,66 @@ const getChatHistory = async (req, res, next) => {
 const streamChatMessage = async (req, res, next) => {
     const { characterId, message } = req.body;
     const userId = req.user.id;
+    let isConnectionClosed = false;
+
+    req.on('close', () => {
+        logger.info(`SSE connection closed by client for user: ${userId}, characterId: ${characterId}`);
+        isConnectionClosed = true;
+    });
 
     try {
-        const { aiResponseText } = await chatService.prepareStreamAndSaveMessages(userId, characterId, message);
+        if (!isConnectionClosed && !res.writableEnded) {
+             res.set({
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+            });
+            res.flushHeaders();
+             logger.info(`SSE connection opened for user: ${userId}, characterId: ${characterId}`);
+        } else {
+             logger.warn(`SSE stream aborted before headers sent or already ended for user: ${userId}`);
+             return;
+        }
 
-        res.set({
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive"
-        });
-        res.flushHeaders();
+        const { aiResponseText } = await chatService.prepareStreamAndSaveMessages(userId, characterId, message);
 
         // Stream the response
         const words = aiResponseText.split(" ");
         for (let i = 0; i < words.length; i++) {
+            if (isConnectionClosed || res.writableEnded) {
+                logger.warn(`SSE stream interrupted for user: ${userId} because connection closed or ended.`);
+                break;
+            }
             res.write(`data: ${words[i]} \n\n`);
             await new Promise(resolve => setTimeout(resolve, 150));
         }
 
-        // Save AI message to DB
-        await chatService.saveAIMessagePostStream(userId, characterId, aiResponseText);
+        if (!isConnectionClosed && !res.writableEnded) {
+            try {
+                 await chatService.saveAIMessagePostStream(userId, characterId, aiResponseText);
 
-        res.write("data: [END]\n\n");
-        res.end();
+                res.write("data: [END]\n\n");
+
+            } catch(dbError){
+                 logger.error("Error saving AI message post-stream: %o", dbError);
+            } finally {
+                 if (!isConnectionClosed && !res.writableEnded) {
+                      logger.info(`Ending SSE stream successfully for user: ${userId}`);
+                      res.end();
+                 }
+            }
+        } else if (!res.writableEnded) {
+             logger.info(`Ending SSE stream because connection closed during loop for user: ${userId}`);
+             res.end();
+        }
+
     } catch (err) {
-        logger.error("chatController.streamChatMessage error: userId=%s, characterId=%s, error: %o", userId, characterId, err);
-        if (!res.headersSent) {
+        logger.error("chatController.streamChatMessage main error catch: userId=%s, characterId=%s, error: %o", userId, characterId, err);
+        if (!isConnectionClosed && !res.headersSent && !res.writableEnded) {
+             logger.warn(`Passing error to global handler as SSE stream did not start for user: ${userId}`);
             next(err);
-        } else {
-            logger.error("chatController: SSE stream error after headers sent. Client might have partial data or disconnected.");
+        } else if (!isConnectionClosed && !res.writableEnded) {
+            logger.error("chatController: Ending SSE stream due to error after headers sent or during processing.");
             res.end();
         }
     }
