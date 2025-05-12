@@ -22,6 +22,14 @@ app.use(express.json());
 // HTTP request logging
 app.use(morgan("dev", { stream: { write: (msg) => logger.info(msg.trim()) } }));
 
+app.get('/', (req, res) => {
+    res.status(200).json({ 
+      status: 'success', 
+      message: 'Welcome to the AI Chat Backend API!',
+      documentationNote: 'Please refer to the API documentation for available endpoints.' 
+    });
+});
+
 // Routes
 app.use("/api/auth", require("./src/routes/authRoutes"));
 app.use("/api/chat", require("./src/routes/chatRoutes"));
