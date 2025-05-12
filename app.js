@@ -47,22 +47,37 @@ app.use("/api/chat", require("./src/routes/chatRoutes"));
 
 // Function to add default character
 async function addDefaultCharacters() {
-  try {
-    const characterCount = await Character.countDocuments();
-    if (characterCount === 0) {
-      logger.info("No characters found. Adding default character...");
-      await Character.create([
+    const defaultCharacters = [
         {
-          _id: "68209ce7ff59fa7eb58871bc",
-          name: "AI Assistant",
-          basePrompt: "You are a friendly and helpful AI assistant. Your primary goal is to assist users with their queries clearly and concisely. Maintain a warm and engaging tone throughout the conversation."
+        _id: "68209ce7ff59fa7eb58871bc",
+        name: "Friendly AI Assistant",
+        basePrompt: "You are a friendly and helpful AI assistant. Your primary goal is to assist users with their queries clearly and concisely. Maintain a warm and engaging tone throughout the conversation."
+        },
+        {
+        _id: "68209ce7ff59fa7eb58871bd",
+        name: "Formal AI Assistant",
+        basePrompt: "You are a formal and helpful AI assistant. Your primary goal is to assist users with their queries clearly and concisely. Maintain a formal tone throughout the conversation."
         }
-      ]);
-      logger.info("Default characters added successfully.");
-    } 
-  } catch (error) {
-    logger.error("Error seeding default characters: %o", error);
-  }
+    ];
+
+    try {
+        const defaultCharacterIds = defaultCharacters.map(char => char._id);
+
+        const existingChars = await Character.find({ _id: { $in: defaultCharacterIds } }).select('_id').lean();
+        const existingIdsSet = new Set(existingChars.map(char => char._id.toString()));
+
+        const charactersToAdd = defaultCharacters.filter(char => !existingIdsSet.has(char._id));
+
+        if (charactersToAdd.length > 0) {
+        logger.info(`Found ${existingChars.length} existing characters. Adding ${charactersToAdd.length} missing default characters...`);
+        await Character.insertMany(charactersToAdd);
+        logger.info(`Successfully added ${charactersToAdd.length} characters.`);
+        } else {
+        logger.info("All default characters already exist.");
+        }
+    } catch (error) {
+        logger.error("Error checking or adding default characters: %o", error);
+    }
 }
 
 mongoose.connect(process.env.MONGO_URI)
