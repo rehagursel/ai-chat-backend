@@ -10,7 +10,7 @@ const app = express();
 
 const allowedOrigins = [
     "http://localhost:5173",
-    "https://ai-chat-ui-eight.vercel.app/"
+    "https://ai-chat-ui-eight.vercel.app"
 ];
 
 const corsOptions = {
