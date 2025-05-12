@@ -65,6 +65,10 @@ You can import and use the following Postman collection to easily test the API e
 
 **Collection Link:** [AI Chat Backend Postman Collection](https://www.postman.com/maintenance-astronaut-73041340/chat-app-collection/collection/jxr94jt/ai-chat-backend?action=share&creator=38549351)
 
+**Environments:** 
+baseURL: https://ai-chat-backend-git-main-rehagursels-projects.vercel.app
+characterId: 68209ce7ff59fa7eb58871bc
+
 Make sure to set up any required environment variables in Postman (like `baseURL` if your local server runs on a different port, or `JWT_TOKEN` after logging in).
 
 
