@@ -23,7 +23,7 @@ const createAndRespondToMessage = async (userId, characterId, messageText) => {
     await userMessage.save();
     logger.info("chatService: User message saved. userId=%s, characterId=%s", userId, characterId);
 
-    const aiResponseText = getSimulatedAIResponse(messageText);
+    const aiResponseText = getSimulatedAIResponse(messageText, character.basePrompt);
 
     // Save AI message
     const aiMessage = new Message({
@@ -67,7 +67,7 @@ const prepareStreamAndSaveMessages = async (userId, characterId, messageText) =>
     await userMessage.save();
     logger.info("chatService: User message saved (stream). userId=%s, characterId=%s", userId, characterId);
 
-    const aiResponseText = getSimulatedAIResponse(messageText);
+    const aiResponseText = getSimulatedAIResponse(messageText, character.basePrompt);
 
     return { userMessage, aiResponseText, characterName: character.name };
 };
